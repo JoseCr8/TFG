@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -44,8 +45,17 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t txData[30] = "Hello World!\r\n";
+//uint8_t txData[30] = "Hello World!\r\n";
+uint8_t txData[30];
 uint8_t rxData[2];
+#define TRIG_PIN GPIO_PIN_12
+#define TRIG_PORT GPIOA
+#define ECHO_PIN GPIO_PIN_11
+#define ECHO_PORT GPIOA
+uint32_t pMillis;
+uint32_t Value1 = 0;
+uint32_t Value2 = 0;
+uint16_t Distance  = 0;  // cm
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -89,7 +99,11 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
+
+  HAL_TIM_Base_Start(&htim1);
+  HAL_GPIO_WritePin(TRIG_PORT, TRIG_PIN, GPIO_PIN_RESET);  // pull the TRIG pin low
 
   /* USER CODE END 2 */
 
@@ -97,9 +111,26 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_Delay(200);
+    //HAL_Delay(200);
 	  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);
 
+    HAL_GPIO_WritePin(TRIG_PORT, TRIG_PIN, GPIO_PIN_SET);  // pull the TRIG pin HIGH
+	  __HAL_TIM_SET_COUNTER(&htim1, 0);
+	  while (__HAL_TIM_GET_COUNTER (&htim1) < 10);  // wait for 10 us
+	  HAL_GPIO_WritePin(TRIG_PORT, TRIG_PIN, GPIO_PIN_RESET);  // pull the TRIG pin low
+
+	  pMillis = HAL_GetTick(); // used this to avoid infinite while loop  (for timeout)
+		// wait for the echo pin to go high
+	  while (!(HAL_GPIO_ReadPin (ECHO_PORT, ECHO_PIN)) && pMillis + 10 >  HAL_GetTick());
+	  Value1 = __HAL_TIM_GET_COUNTER (&htim1);
+
+	  pMillis = HAL_GetTick(); // used this to avoid infinite while loop (for timeout)
+	  // wait for the echo pin to go low
+	  while ((HAL_GPIO_ReadPin (ECHO_PORT, ECHO_PIN)) && pMillis + 10 > HAL_GetTick());
+	  Value2 = __HAL_TIM_GET_COUNTER (&htim1);
+
+	  Distance = (Value2-Value1)* 0.034/2;
+	  int len = snprintf((char*)txData, sizeof(txData), "%u\r\n", Distance);
     // Send data
 	  HAL_UART_Transmit(&huart1, txData, sizeof(txData), 100);
 
@@ -135,7 +166,12 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 8;
+  RCC_OscInitStruct.PLL.PLLN = 72;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -145,12 +181,12 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
