@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
@@ -51,8 +52,9 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+
 //HC-SR04
-uint8_t txData[30];
+uint8_t txData[41];
 uint8_t rxData[2];
 
 uint32_t echo1, echo2, delay_hcsr04;
@@ -64,18 +66,37 @@ float       pt100Temp;
 uint8_t fault;
 uint16_t rtd_raw;
 
+Max31865_t  pt100E;
+bool        pt100EisOK;
+float       pt100ETemp;
+uint8_t faultE;
+uint16_t rtd_rawE;
+
 //ACCELEROMETER
 LIS3DSH_DataScaled current_acceleration;
+float x_transformed;
+float y_transformed;
+float z_transformed;
+float vy;
 
-//DHT11
-//uint8_t Rh_byte1, Rh_byte2, Temp_byte1, Temp_byte2;
-//uint16_t SUM, RH, TEMP;
+float alpha = 0.5f;
+float filtered_y = 0.0f;
+uint32_t timer_current_vy = 0;
+uint32_t timer_last_vy = 0;
+float dt_vy = 0.0f;
 
-DHT_DataTypedef DHT11_Data;
-float Temperature = 0;
-float Humidity = 0;
-uint32_t delay_dht11;
-//uint8_t Presence = 0;
+//RPM
+extern int RPM_COUNTER;
+uint32_t rpm = 0;
+
+// fuel
+uint32_t fuel_level;
+
+// distance
+uint32_t timer_current = 0;
+uint32_t timer_last = 0;
+float dt = 0.0f;
+float travelled_distance = 0.0f;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -86,69 +107,12 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-/*
-void delay (uint16_t time){
-	__HAL_TIM_SET_COUNTER(&htim6, 0);
-	while ((__HAL_TIM_GET_COUNTER(&htim6)) < time);
+
+float low_pass_filter(float new_sample) {
+	filtered_y = alpha * new_sample + (1.0f - alpha) * filtered_y;
+    return filtered_y;
 }
 
-void set_pin_output (GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin){
-	GPIO_InitTypeDef GPIO_InitStruct = {0};
-	GPIO_InitStruct.Pin = GPIO_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(GPIOx, &GPIO_InitStruct);
-}
-
-void set_pin_input (GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin){
-	GPIO_InitTypeDef GPIO_InitStruct = {0};
-	GPIO_InitStruct.Pin = GPIO_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(GPIOx, &GPIO_InitStruct);
-}
-
-void DHT11_Start (void){
-	set_pin_output(DHT11_PORT, DHT11_PIN);
-	HAL_GPIO_WritePin(DHT11_PORT, DHT11_PIN, 0); //pull the pin low
-	delay(18000);
-	HAL_GPIO_WritePin(DHT11_PORT, DHT11_PIN, 1); //pull the pin high
-	delay(20);
-	set_pin_input(DHT11_PORT, DHT11_PIN);
-}
-
-uint8_t DHT11_Check_Response (void){
-	uint8_t Response = 0;
-	delay(40);
-	if (!(HAL_GPIO_ReadPin(DHT11_PORT, DHT11_PIN)))
-	{
-		delay(80);
-		if((HAL_GPIO_ReadPin(DHT11_PORT, DHT11_PIN))) Response = 1;
-		else Response = -1;
-	}
-	uint32_t time1 = HAL_GetTick();
-	while (HAL_GPIO_ReadPin(DHT11_PORT, DHT11_PIN) && (HAL_GetTick() - time1) < 20); // wait for the pin to go low
-
-	return Response;
-}
-
-uint8_t DHT11_Read (void){
-	uint8_t i,j;
-	for (j = 0; j < 8; j++)
-	{
-		while (!(HAL_GPIO_ReadPin(DHT11_PORT, DHT11_PIN))); // wait for the pin to go high
-		delay(40);
-		if (!(HAL_GPIO_ReadPin(DHT11_PORT, DHT11_PIN))) // if the pin is low
-		{
-			i&= ~(1<<(7-j)); // write 0
-		}
-		else i|= (1<<(7-j)); // if the pin is high write 1
-		uint32_t time2 = HAL_GetTick();
-		while (HAL_GPIO_ReadPin(DHT11_PORT, DHT11_PIN) && (HAL_GetTick() - time2) < 50); // wait for the ping to go low
-	}
-	return i;
-}
-*/
 /* USER CODE END 0 */
 
 /**
@@ -185,16 +149,20 @@ int main(void)
   MX_USART2_UART_Init();
   MX_SPI2_Init();
   MX_SPI1_Init();
+  MX_TIM6_Init();
+  MX_ADC1_Init();
+  MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
-  //HAL_TIM_Base_Start(&htim6);
+  HAL_TIM_Base_Start_IT(&htim6);
   HAL_TIM_Base_Start(&htim11);
   HAL_TIM_Base_Start(&htim11);
   HAL_TIM_PWM_Start(&htim11, TIM_CHANNEL_1);
   HAL_TIM_IC_Start(&htim8, TIM_CHANNEL_1);
   HAL_TIM_IC_Start(&htim8, TIM_CHANNEL_2);
-  TIM11->CCR1 = 3;
+  TIM11->CCR1 = 4;
 
   Max31865_init(&pt100,&hspi2,GPIOC,GPIO_PIN_8,3,50);
+  Max31865_init(&pt100E,&hspi3,GPIOA,GPIO_PIN_12,3,50);
 
   accelerometerConfig.dataRate = LIS3DSH_DATARATE_12_5;
   accelerometerConfig.fullScale = LIS3DSH_FULLSCALE_4;
@@ -202,6 +170,8 @@ int main(void)
   accelerometerConfig.enableAxes = LIS3DSH_XYZ_ENABLE;
   accelerometerConfig.interruptEnable = false;
   LIS3DSH_Init(&hspi1, &accelerometerConfig);
+  LIS3DSH_X_calibrate(-1027, 1061);
+  LIS3DSH_Y_calibrate(-999, 990);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -218,27 +188,67 @@ int main(void)
 		dist2 = echo2 / 58.0f;
 	}
 
-	float t;
+	float tempIn;
+	float tempE;
 	HAL_GPIO_TogglePin(GreenLed_GPIO_Port, GreenLed_Pin);
 
-	// PT100 temperature sensor
-	pt100isOK = Max31865_readTempC(&pt100,&t);
+	// PT100 temperature sensor interior
+	pt100isOK = Max31865_readTempC(&pt100,&tempIn);
 	rtd_raw = Max31865_readRTD(&pt100);
 	if (pt100isOK != false){
-		pt100Temp = Max31865_Filter(t,pt100Temp,0.1);
+		pt100Temp = Max31865_Filter(tempIn,pt100Temp,0.1);
 	}
 	else{
 		fault = Max31865_readFault(&pt100);
 	}
 
-	if (LIS3DSH_PollDRDY(100)) {
-		current_acceleration = LIS3DSH_GetDataScaled();
-		current_acceleration.x;
-		current_acceleration.y;
-		current_acceleration.z;
+	// PT100 temperature sensor exterior
+	pt100EisOK = Max31865_readTempC(&pt100E,&tempE);
+	rtd_rawE = Max31865_readRTD(&pt100E);
+	if (pt100EisOK != false){
+		pt100ETemp = Max31865_Filter(tempE,pt100ETemp,0.1);
+	}
+	else{
+		faultE = Max31865_readFault(&pt100E);
 	}
 
-	snprintf((char*)txData, sizeof(txData), "%.2f,%.2f,%.2f\r\n", dist1,dist2,pt100Temp);
+	// Accelerometer
+	if (LIS3DSH_PollDRDY(100)) {
+		current_acceleration = LIS3DSH_GetDataScaled();
+
+		y_transformed = current_acceleration.y * 0.00981f;
+
+		if (fabs(y_transformed) < 0.5f) {
+			y_transformed = 0.0f;
+		}
+
+		low_pass_filter(y_transformed);
+
+		timer_current_vy = HAL_GetTick();
+
+		dt_vy = (timer_current_vy - timer_last_vy) / 1000.0f;
+
+		vy += filtered_y * dt_vy;
+
+		timer_last_vy = timer_current_vy;
+	}
+
+	// Fuel level
+	HAL_ADC_Start(&hadc1);
+	if(HAL_ADC_PollForConversion(&hadc1, 5) == HAL_OK){
+		fuel_level = HAL_ADC_GetValue(&hadc1);
+	}
+	HAL_ADC_Stop(&hadc1);
+
+	// Distance
+	timer_current = HAL_GetTick();
+	dt = (timer_current - timer_last) / 1000.0f;
+
+	timer_last = timer_current;
+
+	travelled_distance += fabs(vy) * dt;
+
+	snprintf((char*)txData, sizeof(txData), "%.2f,%.2f,%.2f,%.2f,%lu,%.2f,%lu,%.2f\r\n", dist1,dist2,pt100Temp,pt100ETemp,rpm,vy,fuel_level,travelled_distance);
 	HAL_UART_Transmit(&huart2, txData, sizeof(txData), 100);
 	HAL_UART_Receive(&huart2, rxData, sizeof(rxData), 100);
 	HAL_GPIO_TogglePin(OrangeLed_GPIO_Port, OrangeLed_Pin);
@@ -297,7 +307,15 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+// RPM
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM6)
+    {
+        rpm = RPM_COUNTER * 3;  // 60 / 20 ranuras = 3
+        RPM_COUNTER = 0;
+    }
+}
 /* USER CODE END 4 */
 
 /**

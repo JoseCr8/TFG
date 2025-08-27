@@ -6,6 +6,7 @@ import serial
 import asyncio
 import threading
 import time
+import traceback
 from dotenv import load_dotenv
 
 import tkinter as tk
@@ -43,12 +44,6 @@ def handler_sigint(signum, frame) -> None:
     serial_port.close()
     running_app = False
 
-def draw_dashboard():
-    global window
-    
-    pass
-
-
 def process_data():
     """
     Process data received from the serial port.
@@ -66,13 +61,24 @@ def process_data():
     counter = 0
     while running_app:
         try:
-            data = serial_port.read(30)
+            data = serial_port.read(41)
             decoded_data = data.decode('utf-8', errors='replace').strip()
             decoded_data = decoded_data.replace('\r\n', '')
+            decoded_data = decoded_data.replace('\x00', '')
             _logger.info(f"Received data: {decoded_data}")
+            
+            data_array = decoded_data.split(',')
 
-            counter += 1
-            rpm_gauge.update_value(counter)
+            #_logger.info(data_array)
+
+            security_distance.update_distances(front=int(float(data_array[0])), back=int(float(data_array[1])))
+            dashboard_canvas.update_temperature_text(float(data_array[2]))
+            dashboard_canvas.update_engine_temp_level(float(data_array[3])/100)
+            rpm_gauge.update_value(int(data_array[4]) / 1000)
+            speed_gauge.update_value(float(data_array[5]))
+            dashboard_canvas.update_fuel_level(int(data_array[6])/255)
+            dashboard_canvas.update_odometer(int(float(data_array[7])))
+            
 
         except serial.SerialException as serial_error:
             _logger.error(f"Serial port error: {serial_error}")
@@ -80,7 +86,8 @@ def process_data():
             #await asyncio.sleep(SLEEP_TIME_ON_ERROR)
         except Exception as error:
             _logger.error(f"Unexpected error: {error}")
-            time.sleep(SLEEP_TIME_ON_ERROR)
+            _logger.error(traceback.format_exc())
+            #time.sleep(SLEEP_TIME_ON_ERROR)
             #await asyncio.sleep(SLEEP_TIME_ON_ERROR)
 
 
@@ -100,6 +107,9 @@ def main() -> None:
     global window 
     global serial_port
     global rpm_gauge
+    global speed_gauge
+    global security_distance
+    global dashboard_canvas
     
     signal.signal(signal.SIGINT, handler_sigint)
     signal.signal(signal.SIGTERM, handler_sigint)
@@ -123,46 +133,27 @@ def main() -> None:
 
     window.title(WINDOW_TITLE)
     window.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{width_pos}+{height_pos}")
-    window.minsize(500, 500)
+    window.minsize(500, 10)
 
-    
-    rpm_gauge = GaugeCanvas(window, width=300, height=300)
+    rpm_gauge = GaugeCanvas(window, width=300, height=150, max_value=18, step=1)
     rpm_gauge.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
-    speed_gauge = GaugeCanvas(window, width=300, height=300)
+    speed_gauge = GaugeCanvas(window, width=300, height=150, max_value=32, step=2)
     speed_gauge.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
 
-    security_distance = DistanceCanvas(window,front_distance=80, back_distance=40)
-    security_distance.grid(row=0, rowspan=2, column=2, padx=10, pady=10, sticky="nsew")
+    security_distance = DistanceCanvas(window, width=150, height=200, front_distance=0, back_distance=0)
+    security_distance.grid(row=0, column=2, rowspan=2, padx=10, pady=10, sticky="nsew")
 
-    dashboard_canvas = RectangleDashboardCanvas(window)
-    dashboard_canvas.grid(row=1, column=0,columnspan=2, padx=10, pady=10, sticky="ns")
-    #total_distance = ttk.Entry(window, width=25)
-    #total_distance.insert(0, "Distance: 1520 km")
-    #total_distance.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
-
-    #temperature = ttk.Entry(window, width=25)
-    #temperature.insert(0, "Temp: 85°C")
-    #temperature.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
-
-    # === Make grid fully responsive ===
-    for i in range(3):  # 3 columns
-        window.columnconfigure(i, weight=1)
-    for j in range(2):  # 2 rows
-        window.rowconfigure(j, weight=1)
-
+    dashboard_canvas = RectangleDashboardCanvas(window, width=620, height=250)
+    dashboard_canvas.grid(row=1, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
+    
     data_processing_thread = threading.Thread(target=process_data)
-    #gui_thread = threading.Thread(target=window.mainloop)
     
     data_processing_thread.start()
-    #gui_thread.start()
 
     window.mainloop()
     
     data_processing_thread.join()
-    #gui_thread.join()
-
-    #asyncio.run(main_loop())
 
 if __name__ == '__main__':
     main()

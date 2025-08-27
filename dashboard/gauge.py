@@ -2,30 +2,34 @@ import tkinter as tk
 import math
 
 class GaugeCanvas(tk.Canvas):
-    def __init__(self, master=None, width=300, height=300, max_value=100, **kwargs):
+    def __init__(self, master=None, width=300, height=300, max_value=100, step=10, **kwargs):
         super().__init__(master, width=width, height=height, **kwargs)
         self.width = width
         self.height = height
-        self.center = (width // 2, height // 2)
+        self.center = (width // 2, int(height * 0.9))
         self.radius = min(self.center) - 10
         self.max_value = max_value
+        self.step = step
         self.angle_range = 180 # from -135 to +135 degrees
         self.start_angle = -180
         self.needle = None
+        self.knob = None
         self.draw_gauge()
         self.draw_needle(0)
 
     def draw_gauge(self):
         # Draw outer arc
         # Multiply angle_range by -1 to draw the arc in the correct direction
+        # An arc object on a canvas, in its most general form, is a wedge-shaped slice taken out of an ellipse
+        # Point (x0, y0) is the top left corner and (x1, y1) the lower right corner of a rectangle into which the ellipse is fit. If this rectangle is square, you get a circle.
         self.create_arc(
-            10, 10, self.width - 10, self.height - 10,
+            10, 10, self.width - 10, self.width -10,
             start=self.start_angle*-1, extent=self.angle_range*-1,
             style="arc", width=3
         )
 
         # Draw tick marks
-        for i in range(0, self.max_value + 1, 10):
+        for i in range(0, self.max_value + 1, self.step):
             angle = math.radians(self.start_angle + (i / self.max_value) * self.angle_range)
             inner = (
                 self.center[0] + (self.radius - 10) * math.cos(angle),
@@ -50,7 +54,8 @@ class GaugeCanvas(tk.Canvas):
         x = self.center[0] + (self.radius - 30) * math.cos(angle)
         y = self.center[1] + (self.radius - 30) * math.sin(angle)
         self.needle = self.create_line(self.center[0], self.center[1], x, y, fill='red', width=3)
-
+        # Center knob
+        self.knob = self.create_oval(self.center[0] - 5, self.center[1] - 5, self.center[0] + 5, self.center[1] + 5, fill="gray", outline="black")
     def update_value(self, value):
         value = min(max(value, 0), self.max_value)
         self.draw_needle(value)
