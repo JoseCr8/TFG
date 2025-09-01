@@ -29,8 +29,8 @@ class RectangleDashboardCanvas(tk.Canvas):
         self.temp_gauge.update(level)
 
 class Gauge:
-    def __init__(self, canvas: tk.Canvas, center, radius, label_left, label_right, title=None):
-        self.canvas = canvas
+    def __init__(self, master: tk.Canvas, center, radius, label_left, label_right, title=None):
+        self.master = master
         self.center = center
         self.radius = radius
         self.needle = None
@@ -42,7 +42,7 @@ class Gauge:
         r = self.radius
 
         # Arc (semi-circle)
-        self.canvas.create_arc(cx - r, cy - r, cx + r, cy + r, start=135, extent=270, style=tk.ARC, width=2)
+        self.master.create_arc(cx - r, cy - r, cx + r, cy + r, start=135, extent=270, style=tk.ARC, width=2)
 
         # Ticks
         for i in range(5):
@@ -55,13 +55,13 @@ class Gauge:
 
         # Optional title
         if title:
-            self.canvas.create_text(cx, cy + r + 10, text=title, font=("Arial", 10))
+            self.master.create_text(cx, cy + r + 10, text=title, font=("Arial", 10))
 
         # Needle
-        self.needle = self.canvas.create_line(cx, cy, cx, cy - r + 10, width=4, fill="red")
+        self.needle = self.master.create_line(cx, cy, cx, cy - r + 10, width=4, fill="red")
 
         # Center knob
-        self.knob = self.canvas.create_oval(cx - 5, cy - 5, cx + 5, cy + 5, fill="gray", outline="black")
+        self.knob = self.master.create_oval(cx - 5, cy - 5, cx + 5, cy + 5, fill="gray", outline="black")
 
     def draw_tick(self, angle_deg):
         r_outer = self.radius
@@ -72,14 +72,14 @@ class Gauge:
         y1 = cy - r_inner * math.sin(angle_rad)
         x2 = cx + r_outer * math.cos(angle_rad)
         y2 = cy - r_outer * math.sin(angle_rad)
-        self.canvas.create_line(x1, y1, x2, y2, width=2)
+        self.master.create_line(x1, y1, x2, y2, width=2)
 
     def place_label(self, text, angle_deg, offset=15):
         cx, cy = self.center
         angle_rad = math.radians(angle_deg)
         x = cx + (self.radius + offset) * math.cos(angle_rad)
         y = cy - (self.radius + offset) * math.sin(angle_rad)
-        self.canvas.create_text(x, y, text=text, font=("Arial", 10, "bold"))
+        self.master.create_text(x, y, text=text, font=("Arial", 10, "bold"))
 
     def update(self, level):  # level: 0.0 to 1.0
         angle = 135 + (270 * level)
@@ -88,4 +88,4 @@ class Gauge:
         r = self.radius - 10
         x = cx + r * math.cos(angle_rad)
         y = cy - r * math.sin(angle_rad)
-        self.canvas.coords(self.needle, cx, cy, x, y)
+        self.master.coords(self.needle, cx, cy, x, y)

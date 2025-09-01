@@ -53,10 +53,11 @@
 
 /* USER CODE BEGIN PV */
 
-//HC-SR04
+
 uint8_t txData[41];
 uint8_t rxData[2];
 
+//HC-SR04
 uint32_t echo1, echo2, delay_hcsr04;
 float dist1, dist2;
 //PT100
@@ -162,7 +163,7 @@ int main(void)
   TIM11->CCR1 = 4;
 
   Max31865_init(&pt100,&hspi2,GPIOC,GPIO_PIN_8,3,50);
-  Max31865_init(&pt100E,&hspi3,GPIOA,GPIO_PIN_12,3,50);
+  Max31865_init(&pt100E,&hspi3,GPIOE,GPIO_PIN_12,3,50);
 
   accelerometerConfig.dataRate = LIS3DSH_DATARATE_12_5;
   accelerometerConfig.fullScale = LIS3DSH_FULLSCALE_4;
@@ -248,7 +249,8 @@ int main(void)
 
 	travelled_distance += fabs(vy) * dt;
 
-	snprintf((char*)txData, sizeof(txData), "%.2f,%.2f,%.2f,%.2f,%lu,%.2f,%lu,%.2f\r\n", dist1,dist2,pt100Temp,pt100ETemp,rpm,vy,fuel_level,travelled_distance);
+	snprintf((char*)txData, sizeof(txData), "%.2f,%.2f,%.2f,%.2f,%lu,%.2f,%lu,%.2f\r\n",
+    dist1,dist2,pt100Temp,pt100ETemp,rpm,vy,fuel_level,travelled_distance);
 	HAL_UART_Transmit(&huart2, txData, sizeof(txData), 100);
 	HAL_UART_Receive(&huart2, rxData, sizeof(rxData), 100);
 	HAL_GPIO_TogglePin(OrangeLed_GPIO_Port, OrangeLed_Pin);
@@ -312,7 +314,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM6)
     {
-        rpm = RPM_COUNTER * 3;  // 60 / 20 ranuras = 3
+        rpm = RPM_COUNTER * 3; // 60s/20 ranuras = 3
         RPM_COUNTER = 0;
     }
 }

@@ -29,14 +29,13 @@ class DistanceCanvas(tk.Canvas):
         base_y = self.car_y if direction == 'front' else self.car_y + 100  # 100 is car height
         direction_multiplier = -1 if direction == 'front' else 1
 
-        #num_arcs = min(distance // self.spacing, self.max_arcs)
+        #num_arcs = min(distance // self.spacing, self.max_arcs) # with this we get de no arcs at 0 and the max at 50
         bounded_distance = min(distance, self.max_distance)
         ratio = 1 - (bounded_distance / self.max_distance)
         num_arcs = int(round(ratio * self.max_arcs))
 
         for i in range(1, num_arcs + 1):
-            #radius = i * self.spacing
-            radius = i * 10
+            radius = i * self.spacing 
             x0 = self.center_x - radius
             y0 = base_y + direction_multiplier * radius
             x1 = self.center_x + radius

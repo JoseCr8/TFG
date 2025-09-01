@@ -74,7 +74,7 @@ def process_data():
             security_distance.update_distances(front=int(float(data_array[0])), back=int(float(data_array[1])))
             dashboard_canvas.update_temperature_text(float(data_array[2]))
             dashboard_canvas.update_engine_temp_level(float(data_array[3])/100)
-            rpm_gauge.update_value(int(data_array[4]) / 1000)
+            rpm_gauge.update_value(int(data_array[4]))
             speed_gauge.update_value(float(data_array[5]))
             dashboard_canvas.update_fuel_level(int(data_array[6])/255)
             dashboard_canvas.update_odometer(int(float(data_array[7])))
@@ -135,10 +135,10 @@ def main() -> None:
     window.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{width_pos}+{height_pos}")
     window.minsize(500, 10)
 
-    rpm_gauge = GaugeCanvas(window, width=300, height=150, max_value=18, step=1)
+    rpm_gauge = GaugeCanvas(window, width=300, height=150, max_value=150, step=10, gauge_text="rpm")
     rpm_gauge.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
-    speed_gauge = GaugeCanvas(window, width=300, height=150, max_value=32, step=2)
+    speed_gauge = GaugeCanvas(window, width=300, height=150, max_value=32, step=2, gauge_text="m/s")
     speed_gauge.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
 
     security_distance = DistanceCanvas(window, width=150, height=200, front_distance=0, back_distance=0)

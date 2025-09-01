@@ -2,7 +2,7 @@ import tkinter as tk
 import math
 
 class GaugeCanvas(tk.Canvas):
-    def __init__(self, master=None, width=300, height=300, max_value=100, step=10, **kwargs):
+    def __init__(self, master=None, width=300, height=300, max_value=100, step=10, gauge_text=None, **kwargs):
         super().__init__(master, width=width, height=height, **kwargs)
         self.width = width
         self.height = height
@@ -10,7 +10,8 @@ class GaugeCanvas(tk.Canvas):
         self.radius = min(self.center) - 10
         self.max_value = max_value
         self.step = step
-        self.angle_range = 180 # from -135 to +135 degrees
+        self.gauge_text = gauge_text
+        self.angle_range = 180
         self.start_angle = -180
         self.needle = None
         self.knob = None
@@ -20,8 +21,6 @@ class GaugeCanvas(tk.Canvas):
     def draw_gauge(self):
         # Draw outer arc
         # Multiply angle_range by -1 to draw the arc in the correct direction
-        # An arc object on a canvas, in its most general form, is a wedge-shaped slice taken out of an ellipse
-        # Point (x0, y0) is the top left corner and (x1, y1) the lower right corner of a rectangle into which the ellipse is fit. If this rectangle is square, you get a circle.
         self.create_arc(
             10, 10, self.width - 10, self.width -10,
             start=self.start_angle*-1, extent=self.angle_range*-1,
@@ -46,6 +45,7 @@ class GaugeCanvas(tk.Canvas):
             label_y = self.center[1] + (self.radius - 25) * math.sin(angle)
             self.create_text(label_x, label_y, text=str(i), font=("Helvetica", 8))
 
+        self.create_text(self.center[0], self.center[1] - 20, text=self.gauge_text, font=("Helvetica", 8, "bold"), justify="center")
     def draw_needle(self, value):
         if self.needle:
             self.delete(self.needle)
