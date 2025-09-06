@@ -41,7 +41,7 @@ class Gauge:
         cx, cy = self.center
         r = self.radius
 
-        # Arc (semi-circle)
+        # Arc
         self.master.create_arc(cx - r, cy - r, cx + r, cy + r, start=135, extent=270, style=tk.ARC, width=2)
 
         # Ticks
@@ -72,7 +72,7 @@ class Gauge:
         y1 = cy - r_inner * math.sin(angle_rad)
         x2 = cx + r_outer * math.cos(angle_rad)
         y2 = cy - r_outer * math.sin(angle_rad)
-        self.master.create_line(x1, y1, x2, y2, width=2)
+        self.master.create_line(x1, y1, x2, y2,  width=2)
 
     def place_label(self, text, angle_deg, offset=15):
         cx, cy = self.center

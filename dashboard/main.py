@@ -32,6 +32,7 @@ SERIAL_PORT_BAUDRATE = int(os.getenv('CONNECTION_SERIAL_PORT_BAUDRATE', '115200'
 SERIAL_PORT_BYTESIZE = int(os.getenv('CONNECTION_SERIAL_PORT_BYTESIZE', '8'))
 SERIAL_PORT_PARITY = str(os.getenv('CONNECTION_SERIAL_PORT_PARITY', 'N'))
 SERIAL_PORT_STOPBITS = int(os.getenv('CONNECTION_SERIAL_PORT_STOPBITS', '1'))
+
 SLEEP_TIME_ON_ERROR = 1
 
 def handler_sigint(signum, frame) -> None:
@@ -51,9 +52,6 @@ def process_data():
     This function reads data from the serial port and writes it to the log.
 
     It runs in an infinite loop until the application is stopped.
-
-    :raises serial.SerialException: If there is an issue with the serial port
-    :raises Exception: If there is an unexpected error
     """
     global running_app
     global serial_port
@@ -69,8 +67,6 @@ def process_data():
             
             data_array = decoded_data.split(',')
 
-            #_logger.info(data_array)
-
             security_distance.update_distances(front=int(float(data_array[0])), back=int(float(data_array[1])))
             dashboard_canvas.update_temperature_text(float(data_array[2]))
             dashboard_canvas.update_engine_temp_level(float(data_array[3])/100)
@@ -83,12 +79,11 @@ def process_data():
         except serial.SerialException as serial_error:
             _logger.error(f"Serial port error: {serial_error}")
             time.sleep(SLEEP_TIME_ON_ERROR)
-            #await asyncio.sleep(SLEEP_TIME_ON_ERROR)
+
         except Exception as error:
             _logger.error(f"Unexpected error: {error}")
             _logger.error(traceback.format_exc())
-            #time.sleep(SLEEP_TIME_ON_ERROR)
-            #await asyncio.sleep(SLEEP_TIME_ON_ERROR)
+
 
 
 def on_escape(event) -> None:
@@ -117,7 +112,9 @@ def main() -> None:
     _logger.info("Starting dashboard...")
     running_app = True
 
-    serial_port = serial.Serial(port=SERIAL_PORT, baudrate=SERIAL_PORT_BAUDRATE, bytesize=SERIAL_PORT_BYTESIZE, parity=SERIAL_PORT_PARITY, stopbits=SERIAL_PORT_STOPBITS)
+    serial_port = serial.Serial(port=SERIAL_PORT, baudrate=SERIAL_PORT_BAUDRATE,
+                                bytesize=SERIAL_PORT_BYTESIZE, parity=SERIAL_PORT_PARITY,
+                                stopbits=SERIAL_PORT_STOPBITS)
     
     # Window initialization
     window = tk.Tk()

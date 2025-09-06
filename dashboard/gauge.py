@@ -46,6 +46,7 @@ class GaugeCanvas(tk.Canvas):
             self.create_text(label_x, label_y, text=str(i), font=("Helvetica", 8))
 
         self.create_text(self.center[0], self.center[1] - 20, text=self.gauge_text, font=("Helvetica", 8, "bold"), justify="center")
+
     def draw_needle(self, value):
         if self.needle:
             self.delete(self.needle)
@@ -56,6 +57,7 @@ class GaugeCanvas(tk.Canvas):
         self.needle = self.create_line(self.center[0], self.center[1], x, y, fill='red', width=3)
         # Center knob
         self.knob = self.create_oval(self.center[0] - 5, self.center[1] - 5, self.center[0] + 5, self.center[1] + 5, fill="gray", outline="black")
+        
     def update_value(self, value):
         value = min(max(value, 0), self.max_value)
         self.draw_needle(value)

@@ -250,7 +250,7 @@ int main(void)
 	travelled_distance += fabs(vy) * dt;
 
 	snprintf((char*)txData, sizeof(txData), "%.2f,%.2f,%.2f,%.2f,%lu,%.2f,%lu,%.2f\r\n",
-    dist1,dist2,pt100Temp,pt100ETemp,rpm,vy,fuel_level,travelled_distance);
+    dist1,dist2,pt100Temp,pt100ETemp,rpm,fabs(vy),fuel_level,travelled_distance);
 	HAL_UART_Transmit(&huart2, txData, sizeof(txData), 100);
 	HAL_UART_Receive(&huart2, rxData, sizeof(rxData), 100);
 	HAL_GPIO_TogglePin(OrangeLed_GPIO_Port, OrangeLed_Pin);

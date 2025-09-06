@@ -9,13 +9,13 @@ class DistanceCanvas(tk.Canvas):
         self.back_distance = back_distance
 
         self.center_x = width // 2
-        self.car_y = height // 2  # Y position of the car's top
+        self.car_y = height // 2
 
         self.spacing = 10
         self.max_arcs = 4
         self.max_distance = 50
         # Load and scale the car image
-        image_path = "./dashboard/assets/car_top.png"  # <-- your image path
+        image_path = "./dashboard/assets/car_top.png"
         pil_image = Image.open(image_path).resize((60, 100))
         self.car_image = ImageTk.PhotoImage(pil_image)  # Keep reference
 

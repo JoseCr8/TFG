@@ -1,8 +1,7 @@
-dist1
-dist2
-dt_vy
+pt100EisOK
+rtd_rawE
+pt100ETemp
+faultE
+pt100Temp
+dt
 vy
-filtered_y
-y_transformed
-txData
-fuel_level
